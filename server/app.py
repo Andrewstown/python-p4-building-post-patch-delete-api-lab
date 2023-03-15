@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from flask import Flask, make_response, jsonify
+from flask import Flask, make_response, jsonify, request
 from flask_migrate import Migrate
 
 from models import db, Bakery, BakedGood
@@ -30,14 +30,73 @@ def bakeries():
     )
     return response
 
-@app.route('/bakeries/<int:id>')
+@app.route('/bakeries/<int:id>', methods=['GET', 'PATCH'])
 def bakery_by_id(id):
-
     bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
+
+    status = 200
+
+    if request.method == 'GET':
+        pass
+    elif request.method == 'PATCH':
+        for attr in request.form:
+            setattr(bakery, attr, request.form.get(attr))
+
+        db.session.add(bakery)
+        db.session.commit()
 
     response = make_response(
-        bakery_serialized,
+        bakery.to_dict(),
+        status
+    )
+    return response
+
+@app.route('/baked_goods', methods=['GET', 'POST'])
+def baked_goods():
+
+    response_body = {}
+    status = 200
+
+    if request.method == 'GET':
+        response_body = BakedGood.query.all()
+    elif request.method == 'POST':   
+        new_good = BakedGood(
+            name=request.form.get("name"),
+            price=request.form.get("price"),
+            bakery_id=request.form.get("bakery_id")
+        )
+
+        db.session.add(new_good)
+        db.session.commit()
+
+        response_body = new_good.to_dict()
+        status = 201
+
+    response = make_response(
+        response_body,
+        status
+    )
+    return response
+
+@app.route('/baked_goods/<int:id>', methods=['GET', 'DELETE'])
+def baked_goods_by_id(id):
+    baked_good = BakedGood.query.filter(BakedGood.id == id).first()
+
+    response_body = {}
+
+    if request.method == 'GET':
+        response_body = baked_good.to_dict
+    elif request.method == 'DELETE':
+        db.session.delete(baked_good)
+        db.session.commit()
+
+        response_body = {
+            "delete_successful": True,
+            "message": "Baked Good deleted."    
+        }
+
+    response = make_response(
+        response_body,
         200
     )
     return response
